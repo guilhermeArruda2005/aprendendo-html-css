@@ -2,9 +2,9 @@ name: CI/CD HTML com Alertas Discord
 
 on:
   push:
-    branches: [ "principal" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "principal" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
@@ -12,63 +12,63 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Verificar arquivos HTML
         run: ls -la *.html
-
       - name: Notificar Discord - Build Iniciado
         if: always()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{
-            "username": "GitHub Actions Bot",
-            "embeds": [{
-              "title": "🔧 Build Iniciado",
-              "description": "**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** ${{ github.sha }}\n**Autor:** ${{ github.actor }}",
-              "color": 3447003
-            }]
-          }' \
+          -d '{"username":"GitHub Actions Bot","embeds":[{"title":"🔧 Build Iniciado","description":"**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Autor:** ${{ github.actor }}","color":3447003}]}' \
           $DISCORD_WEBHOOK
 
-  deploy:
+  testes-unitarios:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Deploy concluido
-        run: echo "Deploy realizado com sucesso!"
-
-      - name: Notificar Discord - Deploy Concluído com Sucesso
+      - name: Instalar dependencias
+        run: npm install
+      - name: Rodar testes Jest
+        run: npm test
+      - name: Notificar Discord - Testes OK
         if: success()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{
-            "username": "GitHub Actions Bot",
-            "embeds": [{
-              "title": "✅ Deploy Concluído com Sucesso!",
-              "description": "**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** ${{ github.sha }}\n**Autor:** ${{ github.actor }}\n\n🚀 A aplicação foi publicada com sucesso!",
-              "color": 5763719
-            }]
-          }' \
+          -d '{"username":"GitHub Actions Bot","embeds":[{"title":"🧪 Testes Passaram!","description":"**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Autor:** ${{ github.actor }}","color":5763719}]}' \
+          $DISCORD_WEBHOOK
+      - name: Notificar Discord - Testes Falharam
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"username":"GitHub Actions Bot","embeds":[{"title":"❌ Testes Falharam!","description":"**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Autor:** ${{ github.actor }}\n\n⚠️ Verifique os logs!","color":15548997}]}' \
           $DISCORD_WEBHOOK
 
+  deploy:
+    needs: testes-unitarios
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy concluido
+        run: echo "Deploy realizado com sucesso!"
+      - name: Notificar Discord - Deploy Concluído
+        if: success()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+          -d '{"username":"GitHub Actions Bot","embeds":[{"title":"✅ Deploy Concluído com Sucesso!","description":"**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Autor:** ${{ github.actor }}\n\n🚀 A aplicação foi publicada!","color":5763719}]}' \
+          $DISCORD_WEBHOOK
       - name: Notificar Discord - Falha no Deploy
         if: failure()
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           curl -H "Content-Type: application/json" \
-          -d '{
-            "username": "GitHub Actions Bot",
-            "embeds": [{
-              "title": "❌ Falha no Deploy!",
-              "description": "**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Commit:** ${{ github.sha }}\n**Autor:** ${{ github.actor }}\n\n⚠️ Verifique os logs do GitHub Actions para mais detalhes.",
-              "color": 15548997
-            }]
-          }' \
+          -d '{"username":"GitHub Actions Bot","embeds":[{"title":"❌ Falha no Deploy!","description":"**Repositório:** ${{ github.repository }}\n**Branch:** ${{ github.ref_name }}\n**Autor:** ${{ github.actor }}\n\n⚠️ Verifique os logs!","color":15548997}]}' \
           $DISCORD_WEBHOOK
